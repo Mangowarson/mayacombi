@@ -1,0 +1,7 @@
+{
+  "name": "mayaiacombi",
+  "integrations": {
+    "capacitor": {}
+  },
+  "type": "react-vite"
+}
