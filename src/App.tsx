@@ -40,7 +40,11 @@ import './theme/variables.css';
 setupIonicReact();
 
 const App: React.FC = () => {
-  const [activePassenger, setActivePassenger] = useState<Passenger>({ name: '', email: '' });
+  const [activePassenger, setActivePassenger] = useState<Passenger>(() => {
+    const saved = localStorage.getItem('maya_passenger');
+    return saved ? JSON.parse(saved) : { name: '', email: '' };
+  });
+
   const [trips, setTrips] = useState<Trip[]>([]);
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [apiError, setApiError] = useState('');
@@ -66,6 +70,7 @@ const App: React.FC = () => {
   const loginPassenger = async (payload: Passenger) => {
     const { passenger } = await api.login(payload);
     setActivePassenger(passenger);
+    localStorage.setItem('maya_passenger', JSON.stringify(passenger));
     return passenger;
   };
 

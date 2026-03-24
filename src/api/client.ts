@@ -65,5 +65,11 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(payload)
     });
+  },
+
+  async deleteReservation(id: string) {
+    return request<{ message: string }>(`/api/reservations/${id}`, {
+      method: 'DELETE'
+    });
   }
 };

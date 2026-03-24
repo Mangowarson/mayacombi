@@ -176,6 +176,18 @@ app.post('/api/reservations', async (req, res) => {
   }
 });
 
+app.delete('/api/reservations/:id', async (req, res) => {
+  try {
+    const result = await Reservation.findByIdAndDelete(req.params.id);
+    if (!result) {
+      return res.status(404).json({ message: 'Reserva no encontrada.' });
+    }
+    return res.json({ message: 'Reserva cancelada correctamente.' });
+  } catch (error) {
+    return res.status(500).json({ message: 'No se pudo cancelar la reserva.' });
+  }
+});
+
 const startServer = async () => {
   const mongoUri = process.env.MONGODB_URI;
 
