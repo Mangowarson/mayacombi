@@ -19,6 +19,7 @@ import {
   IonToolbar,
   useIonToast
 } from '@ionic/react';
+import { jsPDF } from 'jspdf';
 import { useEffect, useMemo, useState } from 'react';
 import type { Passenger, Reservation, Trip } from '../types';
 import './Tab2.css';
@@ -38,6 +39,7 @@ const Tab2: React.FC<Tab2Props> = ({ activePassenger, trips, reservations, onRes
   const [paymentConfirmed, setPaymentConfirmed] = useState(false);
   const [paymentSelection, setPaymentSelection] = useState<{ tripId: string; seat: number } | null>(null);
   const [ticketMessage, setTicketMessage] = useState('');
+  const [lastReservation, setLastReservation] = useState<Reservation | null>(null);
   const [present] = useIonToast();
 
   const selectedTrip = trips.find((trip) => trip.id === selectedTripId) ?? trips[0];
@@ -120,12 +122,44 @@ const Tab2: React.FC<Tab2Props> = ({ activePassenger, trips, reservations, onRes
       setTicketMessage(
         `Boleto ${reservation.id}: ${selectedTrip.route} ${selectedTrip.time}, asiento ${selectedSeat}, pasajero ${activePassenger.name}.`
       );
+      setLastReservation(reservation);
       setPaymentConfirmed(false);
       setPaymentSelection(null);
       present({ message: 'Reserva confirmada y boleto generado.', duration: 1800, color: 'success' });
     } catch (error) {
       present({ message: error instanceof Error ? error.message : 'Error al reservar.', duration: 1800, color: 'danger' });
     }
+  };
+
+  const handleDownloadReceipt = () => {
+    if (!lastReservation || !selectedTrip) {
+      present({ message: 'Genera una reserva para descargar el recibo.', duration: 1600, color: 'warning' });
+      return;
+    }
+
+    const doc = new jsPDF();
+    doc.setFontSize(18);
+    doc.text('Maya Combi - Recibo de Reserva', 14, 20);
+
+    doc.setFontSize(12);
+    const lines = [
+      `Folio: ${lastReservation.id}`,
+      `Pasajero: ${lastReservation.passengerName}`,
+      `Correo: ${lastReservation.passengerEmail}`,
+      `Ruta: ${selectedTrip.route}`,
+      `Hora: ${selectedTrip.time}`,
+      `Asiento: ${lastReservation.seatNumber}`,
+      `Pago: ${lastReservation.paid ? 'Confirmado' : 'Pendiente'}`,
+      `Fecha: ${new Date(lastReservation.createdAt).toLocaleString()}`
+    ];
+
+    let y = 36;
+    lines.forEach((line) => {
+      doc.text(line, 14, y);
+      y += 8;
+    });
+
+    doc.save(`recibo-${lastReservation.id}.pdf`);
   };
 
   return (
@@ -213,6 +247,9 @@ const Tab2: React.FC<Tab2Props> = ({ activePassenger, trips, reservations, onRes
               <p>
                 <IonBadge color="success">Pago demo validado</IonBadge>
               </p>
+              <IonButton size="small" onClick={handleDownloadReceipt}>
+                Descargar recibo PDF
+              </IonButton>
             </IonCardContent>
           </IonCard>
         )}
