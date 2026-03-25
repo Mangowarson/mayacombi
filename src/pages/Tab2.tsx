@@ -23,7 +23,7 @@ import { Capacitor } from '@capacitor/core';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
 import { jsPDF } from 'jspdf';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api } from '../api/client';
 import type { Passenger, Reservation, Trip } from '../types';
 import './Tab2.css';
@@ -50,14 +50,15 @@ const Tab2: React.FC<Tab2Props> = ({ activePassenger, trips, reservations, onRes
 
   const selectedTrip = trips.find((trip) => trip.id === selectedTripId) ?? trips[0];
 
-  const fetchSeats = async (tripId: string) => {
+  const fetchSeats = useCallback(async (tripId: string) => {
     try {
       const { takenSeats: apiTakenSeats } = await api.getTripSeats(tripId);
-      setTakenSeats(apiTakenSeats);
+      const normalized = apiTakenSeats.map((seat) => Number(seat)).filter((seat) => Number.isFinite(seat));
+      setTakenSeats(normalized);
     } catch {
-      setTakenSeats([]);
+      present({ message: 'No se pudo cargar disponibilidad.', duration: 1600, color: 'warning' });
     }
-  };
+  }, [present]);
 
   const userReservations = useMemo(() => {
     if (!activePassenger.email) return [];
@@ -94,7 +95,7 @@ const Tab2: React.FC<Tab2Props> = ({ activePassenger, trips, reservations, onRes
     if (selectedTrip?.id) {
       void fetchSeats(selectedTrip.id);
     }
-  }, [selectedTrip?.id]);
+  }, [fetchSeats, selectedTrip?.id]);
 
   useEffect(() => {
     let isMounted = true;
@@ -161,6 +162,7 @@ const Tab2: React.FC<Tab2Props> = ({ activePassenger, trips, reservations, onRes
         `Boleto ${reservation.id}: ${selectedTrip.route} ${selectedTrip.time}, asiento ${selectedSeat}, pasajero ${activePassenger.name}.`
       );
       setLastReservation(reservation);
+      setSelectedSeat(null);
       setPaymentConfirmed(false);
       setPaymentSelection(null);
       await fetchSeats(selectedTrip.id);
