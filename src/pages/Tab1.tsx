@@ -15,6 +15,8 @@ import {
   IonToolbar,
   useIonToast
 } from '@ionic/react';
+import { Capacitor } from '@capacitor/core';
+import { FirebaseAuthentication } from '@capacitor-firebase/authentication';
 import { getRedirectResult, signInWithPopup, signInWithRedirect, signOut } from 'firebase/auth';
 import { useCallback, useEffect, useState } from 'react';
 import { auth, googleProvider } from '../firebase';
@@ -64,6 +66,13 @@ const Tab1: React.FC<Tab1Props> = ({ activePassenger, onLogin, onLogout, apiErro
   const handleGoogleLogin = async () => {
     setLoading(true);
     try {
+      if (Capacitor.getPlatform() !== 'web') {
+        const result = await FirebaseAuthentication.signInWithGoogle();
+        const user = result?.user ?? (await FirebaseAuthentication.getCurrentUser()).user;
+        await finalizeLogin(user?.displayName ?? null, user?.email ?? null);
+        return;
+      }
+
       const result = await signInWithPopup(auth, googleProvider);
       await finalizeLogin(result.user.displayName, result.user.email);
     } catch (error) {
@@ -80,7 +89,11 @@ const Tab1: React.FC<Tab1Props> = ({ activePassenger, onLogin, onLogout, apiErro
 
   const handleLogout = async () => {
     try {
-      await signOut(auth);
+      if (Capacitor.getPlatform() !== 'web') {
+        await FirebaseAuthentication.signOut();
+      } else {
+        await signOut(auth);
+      }
     } catch {
       // ignore
     }
