@@ -66,7 +66,7 @@ const Tab1: React.FC<Tab1Props> = ({ activePassenger, onLogin, onLogout, apiErro
   const handleGoogleLogin = async () => {
     setLoading(true);
     try {
-      if (Capacitor.getPlatform() !== 'web') {
+      if (Capacitor.isNativePlatform()) {
         const result = await FirebaseAuthentication.signInWithGoogle();
         const user = result?.user ?? (await FirebaseAuthentication.getCurrentUser()).user;
         await finalizeLogin(user?.displayName ?? null, user?.email ?? null);
@@ -76,6 +76,11 @@ const Tab1: React.FC<Tab1Props> = ({ activePassenger, onLogin, onLogout, apiErro
       const result = await signInWithPopup(auth, googleProvider);
       await finalizeLogin(result.user.displayName, result.user.email);
     } catch (error) {
+      if (Capacitor.isNativePlatform()) {
+        present({ message: 'No se pudo iniciar con Google en Android.', duration: 1800, color: 'danger' });
+        return;
+      }
+
       const code = error && typeof error === 'object' && 'code' in error ? String(error.code) : '';
       if (code === 'auth/popup-blocked' || code === 'auth/operation-not-supported-in-this-environment') {
         await signInWithRedirect(auth, googleProvider);
