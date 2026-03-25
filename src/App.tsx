@@ -48,6 +48,11 @@ const App: React.FC = () => {
   const [trips, setTrips] = useState<Trip[]>([]);
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [apiError, setApiError] = useState('');
+  const adminEmails = (import.meta.env.VITE_ADMIN_EMAILS ?? 'leobeni46@gmail.com')
+    .split(',')
+    .map((email: string) => email.trim().toLowerCase())
+    .filter(Boolean);
+  const isAdmin = !!activePassenger.email && adminEmails.includes(activePassenger.email.toLowerCase());
 
   const loadData = async () => {
     try {
@@ -114,7 +119,11 @@ const App: React.FC = () => {
               />
             </Route>
             <Route exact path="/admin">
-              <Tab3 trips={trips} reservationsByTrip={reservationsByTrip} apiError={apiError} onReload={loadData} />
+              {isAdmin ? (
+                <Tab3 trips={trips} reservationsByTrip={reservationsByTrip} apiError={apiError} onReload={loadData} />
+              ) : (
+                <Redirect to="/inicio" />
+              )}
             </Route>
             <Route exact path="/">
               <Redirect to="/inicio" />
@@ -129,10 +138,12 @@ const App: React.FC = () => {
               <IonIcon aria-hidden="true" icon={ticketOutline} />
               <IonLabel>Reservar</IonLabel>
             </IonTabButton>
-            <IonTabButton tab="admin" href="/admin">
-              <IonIcon aria-hidden="true" icon={settingsOutline} />
-              <IonLabel>Admin</IonLabel>
-            </IonTabButton>
+            {isAdmin && (
+              <IonTabButton tab="admin" href="/admin">
+                <IonIcon aria-hidden="true" icon={settingsOutline} />
+                <IonLabel>Admin</IonLabel>
+              </IonTabButton>
+            )}
           </IonTabBar>
         </IonTabs>
       </IonReactRouter>
