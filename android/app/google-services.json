@@ -12,7 +12,20 @@
           "package_name": "com.mayacombi.mc"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "711180974830-8irtl130hr7pkdn02vq2gl8qeek5hpj3.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.mayacombi.mc",
+            "certificate_hash": "1ecf25cee8a193a99f3c7fa7f999e8495dfe5fa2"
+          }
+        },
+        {
+          "client_id": "711180974830-fhmukm0oj46p86gups32nst1ri0b7hut.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyAWG6H_yo2lmjh0TT6mir_zFtPjn0aAXUA"
@@ -20,7 +33,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "711180974830-fhmukm0oj46p86gups32nst1ri0b7hut.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }
