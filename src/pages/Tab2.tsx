@@ -19,6 +19,9 @@ import {
   IonToolbar,
   useIonToast
 } from '@ionic/react';
+import { Capacitor } from '@capacitor/core';
+import { Filesystem, Directory } from '@capacitor/filesystem';
+import { Share } from '@capacitor/share';
 import { jsPDF } from 'jspdf';
 import { useEffect, useMemo, useState } from 'react';
 import type { Passenger, Reservation, Trip } from '../types';
@@ -207,7 +210,27 @@ const Tab2: React.FC<Tab2Props> = ({ activePassenger, trips, reservations, onRes
     doc.setFontSize(9);
     doc.text('Gracias por viajar con Maya Combi.', 14, 140);
 
-    doc.save(`recibo-${lastReservation.id}.pdf`);
+    const filename = `recibo-${lastReservation.id}.pdf`;
+
+    if (Capacitor.isNativePlatform()) {
+      const dataUri = doc.output('datauristring');
+      const base64 = dataUri.split(',')[1];
+
+      const saved = await Filesystem.writeFile({
+        path: filename,
+        data: base64,
+        directory: Directory.Documents
+      });
+
+      await Share.share({
+        title: 'Recibo Maya Combi',
+        text: 'Recibo de reserva',
+        url: saved.uri
+      });
+      return;
+    }
+
+    doc.save(filename);
   };
 
   return (
