@@ -5,7 +5,6 @@ import {
   IonCardContent,
   IonCardHeader,
   IonCardTitle,
-  IonCheckbox,
   IonChip,
   IonContent,
   IonHeader,
@@ -19,7 +18,7 @@ import {
   IonToolbar,
   useIonToast
 } from '@ionic/react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { Passenger, Reservation, Trip } from '../types';
 import './Tab2.css';
 
@@ -36,6 +35,7 @@ const Tab2: React.FC<Tab2Props> = ({ activePassenger, trips, reservations, onRes
   const [selectedTripId, setSelectedTripId] = useState('');
   const [selectedSeat, setSelectedSeat] = useState<number | null>(null);
   const [paymentConfirmed, setPaymentConfirmed] = useState(false);
+  const [paymentSelection, setPaymentSelection] = useState<{ tripId: string; seat: number } | null>(null);
   const [ticketMessage, setTicketMessage] = useState('');
   const [present] = useIonToast();
 
@@ -56,6 +56,34 @@ const Tab2: React.FC<Tab2Props> = ({ activePassenger, trips, reservations, onRes
 
   const availableSeats = seatNumbers.length - takenSeats.length;
 
+  useEffect(() => {
+    if (!paymentSelection) {
+      return;
+    }
+
+    if (!selectedTrip?.id || !selectedSeat) {
+      setPaymentConfirmed(false);
+      setPaymentSelection(null);
+      return;
+    }
+
+    if (paymentSelection.tripId !== selectedTrip.id || paymentSelection.seat !== selectedSeat) {
+      setPaymentConfirmed(false);
+      setPaymentSelection(null);
+    }
+  }, [paymentSelection, selectedSeat, selectedTrip?.id]);
+
+  const handleDemoPayment = () => {
+    if (!selectedTrip || !selectedSeat) {
+      present({ message: 'Selecciona viaje y asiento antes de pagar.', duration: 1600, color: 'warning' });
+      return;
+    }
+
+    setPaymentConfirmed(true);
+    setPaymentSelection({ tripId: selectedTrip.id, seat: selectedSeat });
+    present({ message: 'Pago demo de $1 aprobado.', duration: 1800, color: 'success' });
+  };
+
   const handleReserve = async () => {
     if (!activePassenger.name || !activePassenger.email) {
       present({ message: 'Primero inicia sesion en Inicio.', duration: 1600, color: 'warning' });
@@ -64,6 +92,11 @@ const Tab2: React.FC<Tab2Props> = ({ activePassenger, trips, reservations, onRes
 
     if (!selectedTrip || !selectedSeat) {
       present({ message: 'Selecciona viaje y asiento.', duration: 1600, color: 'warning' });
+      return;
+    }
+
+    if (!paymentConfirmed) {
+      present({ message: 'Primero confirma el pago demo de $1.', duration: 1600, color: 'warning' });
       return;
     }
 
@@ -80,6 +113,7 @@ const Tab2: React.FC<Tab2Props> = ({ activePassenger, trips, reservations, onRes
         `Boleto ${reservation.id}: ${selectedTrip.route} ${selectedTrip.time}, asiento ${selectedSeat}, pasajero ${activePassenger.name}.`
       );
       setPaymentConfirmed(false);
+      setPaymentSelection(null);
       present({ message: 'Reserva confirmada y boleto generado.', duration: 1800, color: 'success' });
     } catch (error) {
       present({ message: error instanceof Error ? error.message : 'Error al reservar.', duration: 1800, color: 'danger' });
@@ -142,9 +176,16 @@ const Tab2: React.FC<Tab2Props> = ({ activePassenger, trips, reservations, onRes
             </div>
 
             <IonItem lines="none" className="payment-item">
-              <IonCheckbox checked={paymentConfirmed} onIonChange={(e) => setPaymentConfirmed(e.detail.checked)}>
-                Confirmar pago del boleto
-              </IonCheckbox>
+              <IonLabel>
+                Pago demo: ${selectedTrip?.price ? Math.min(selectedTrip.price, 1) : 1} MXN
+              </IonLabel>
+              <IonButton
+                size="small"
+                disabled={paymentConfirmed}
+                onClick={handleDemoPayment}
+              >
+                {paymentConfirmed ? 'Pagado' : 'Pagar $1'}
+              </IonButton>
             </IonItem>
 
             <IonButton expand="block" onClick={handleReserve}>
@@ -162,7 +203,7 @@ const Tab2: React.FC<Tab2Props> = ({ activePassenger, trips, reservations, onRes
             <IonCardContent>
               <IonText>{ticketMessage}</IonText>
               <p>
-                <IonBadge color="success">Pago validado</IonBadge>
+                <IonBadge color="success">Pago demo validado</IonBadge>
               </p>
             </IonCardContent>
           </IonCard>
