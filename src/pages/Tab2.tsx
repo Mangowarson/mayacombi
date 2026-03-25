@@ -40,6 +40,7 @@ const Tab2: React.FC<Tab2Props> = ({ activePassenger, trips, reservations, onRes
   const [paymentSelection, setPaymentSelection] = useState<{ tripId: string; seat: number } | null>(null);
   const [ticketMessage, setTicketMessage] = useState('');
   const [lastReservation, setLastReservation] = useState<Reservation | null>(null);
+  const [logoDataUrl, setLogoDataUrl] = useState<string | null>(null);
   const [present] = useIonToast();
 
   const selectedTrip = trips.find((trip) => trip.id === selectedTripId) ?? trips[0];
@@ -82,6 +83,31 @@ const Tab2: React.FC<Tab2Props> = ({ activePassenger, trips, reservations, onRes
       setPaymentSelection(null);
     }
   }, [paymentSelection, selectedSeat, selectedTrip?.id]);
+
+  useEffect(() => {
+    let isMounted = true;
+    const loadLogo = async () => {
+      try {
+        const response = await fetch('/favicon.png');
+        if (!response.ok) return;
+        const blob = await response.blob();
+        const reader = new FileReader();
+        reader.onload = () => {
+          if (!isMounted) return;
+          if (typeof reader.result === 'string') {
+            setLogoDataUrl(reader.result);
+          }
+        };
+        reader.readAsDataURL(blob);
+      } catch {
+        // ignore if logo fails to load
+      }
+    };
+    void loadLogo();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const handleDemoPayment = () => {
     if (!selectedTrip || !selectedSeat) {
@@ -131,33 +157,55 @@ const Tab2: React.FC<Tab2Props> = ({ activePassenger, trips, reservations, onRes
     }
   };
 
-  const handleDownloadReceipt = () => {
+  const handleDownloadReceipt = async () => {
     if (!lastReservation || !selectedTrip) {
       present({ message: 'Genera una reserva para descargar el recibo.', duration: 1600, color: 'warning' });
       return;
     }
 
     const doc = new jsPDF();
-    doc.setFontSize(18);
-    doc.text('Maya Combi - Recibo de Reserva', 14, 20);
+    doc.setFillColor(8, 96, 86);
+    doc.rect(0, 0, 210, 32, 'F');
 
-    doc.setFontSize(12);
-    const lines = [
-      `Folio: ${lastReservation.id}`,
-      `Pasajero: ${lastReservation.passengerName}`,
-      `Correo: ${lastReservation.passengerEmail}`,
-      `Ruta: ${selectedTrip.route}`,
-      `Hora: ${selectedTrip.time}`,
-      `Asiento: ${lastReservation.seatNumber}`,
-      `Pago: ${lastReservation.paid ? 'Confirmado' : 'Pendiente'}`,
-      `Fecha: ${new Date(lastReservation.createdAt).toLocaleString()}`
+    if (logoDataUrl) {
+      doc.addImage(logoDataUrl, 'PNG', 12, 6, 20, 20);
+    }
+
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(18);
+    doc.text('Maya Combi', logoDataUrl ? 38 : 12, 18);
+    doc.setFontSize(11);
+    doc.text('Recibo de reserva', logoDataUrl ? 38 : 12, 26);
+
+    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(11);
+    doc.text(`Folio: ${lastReservation.id}`, 14, 44);
+
+    doc.setDrawColor(220, 220, 220);
+    doc.line(14, 48, 196, 48);
+
+    const rows = [
+      ['Pasajero', lastReservation.passengerName],
+      ['Correo', lastReservation.passengerEmail],
+      ['Ruta', selectedTrip.route],
+      ['Hora', selectedTrip.time],
+      ['Asiento', String(lastReservation.seatNumber)],
+      ['Pago', lastReservation.paid ? 'Confirmado' : 'Pendiente'],
+      ['Fecha', new Date(lastReservation.createdAt).toLocaleString()]
     ];
 
-    let y = 36;
-    lines.forEach((line) => {
-      doc.text(line, 14, y);
-      y += 8;
+    let y = 60;
+    rows.forEach(([label, value]) => {
+      doc.setTextColor(90, 90, 90);
+      doc.text(label, 14, y);
+      doc.setTextColor(0, 0, 0);
+      doc.text(value, 70, y);
+      y += 10;
     });
+
+    doc.setTextColor(120, 120, 120);
+    doc.setFontSize(9);
+    doc.text('Gracias por viajar con Maya Combi.', 14, 140);
 
     doc.save(`recibo-${lastReservation.id}.pdf`);
   };
