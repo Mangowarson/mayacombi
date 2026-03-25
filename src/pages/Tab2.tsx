@@ -10,6 +10,7 @@ import {
   IonHeader,
   IonItem,
   IonLabel,
+  IonList,
   IonPage,
   IonSelect,
   IonSelectOption,
@@ -48,6 +49,13 @@ const Tab2: React.FC<Tab2Props> = ({ activePassenger, trips, reservations, onRes
       .filter((reservation) => reservation.tripId === tripIdForSeats)
       .map((reservation) => reservation.seatNumber);
   }, [reservations, tripIdForSeats]);
+
+  const userReservations = useMemo(() => {
+    if (!activePassenger.email) return [];
+    return reservations
+      .filter((reservation) => reservation.passengerEmail === activePassenger.email)
+      .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+  }, [activePassenger.email, reservations]);
 
   const seatNumbers = useMemo(() => {
     const totalSeats = selectedTrip?.seats ?? 0;
@@ -208,6 +216,36 @@ const Tab2: React.FC<Tab2Props> = ({ activePassenger, trips, reservations, onRes
             </IonCardContent>
           </IonCard>
         )}
+
+        <IonCard>
+          <IonCardHeader>
+            <IonCardTitle>Historial de reservas</IonCardTitle>
+          </IonCardHeader>
+          <IonCardContent>
+            {!activePassenger.email && (
+              <IonText color="medium">Inicia sesion para ver tu historial.</IonText>
+            )}
+            {activePassenger.email && userReservations.length === 0 && (
+              <IonText color="medium">Aun no tienes reservas registradas.</IonText>
+            )}
+            {activePassenger.email && userReservations.length > 0 && (
+              <IonList>
+                {userReservations.map((reservation) => {
+                  const trip = trips.find((item) => item.id === reservation.tripId);
+                  return (
+                    <IonItem key={reservation.id}>
+                      <IonLabel>
+                        <strong>{trip ? `${trip.route} ${trip.time}` : reservation.tripId}</strong>
+                        <p>Asiento {reservation.seatNumber}</p>
+                        <p>{new Date(reservation.createdAt).toLocaleString()}</p>
+                      </IonLabel>
+                    </IonItem>
+                  );
+                })}
+              </IonList>
+            )}
+          </IonCardContent>
+        </IonCard>
       </IonContent>
     </IonPage>
   );
