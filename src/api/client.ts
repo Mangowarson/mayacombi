@@ -1,4 +1,5 @@
 import type { Passenger, Reservation, Trip } from '../types';
+import { getAuthToken } from '../auth/token';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3001';
 
@@ -44,6 +45,21 @@ const request = async <T>(path: string, options?: RequestInit): Promise<T> => {
   return response.json() as Promise<T>;
 };
 
+const requestWithAuth = async <T>(path: string, options?: RequestInit): Promise<T> => {
+  const token = await getAuthToken();
+  if (!token) {
+    throw new Error('No hay sesion activa para administrador.');
+  }
+
+  return request<T>(path, {
+    ...(options ?? {}),
+    headers: {
+      ...(options?.headers ?? {}),
+      Authorization: `Bearer ${token}`
+    }
+  });
+};
+
 export const api = {
   async login(payload: Passenger) {
     return request<LoginResponse>('/api/auth/login', {
@@ -56,8 +72,12 @@ export const api = {
     return request<TripsResponse>('/api/trips');
   },
 
-  async getReservations() {
-    return request<ReservationsResponse>('/api/reservations');
+  async getReservationsByEmail(email: string) {
+    return request<ReservationsResponse>(`/api/reservations?email=${encodeURIComponent(email)}`);
+  },
+
+  async getAdminReservations() {
+    return requestWithAuth<ReservationsResponse>('/api/admin/reservations');
   },
 
   async createReservation(payload: ReservePayload) {

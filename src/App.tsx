@@ -11,7 +11,7 @@ import {
 } from '@ionic/react';
 import { IonReactRouter } from '@ionic/react-router';
 import { homeOutline, settingsOutline, ticketOutline } from 'ionicons/icons';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Tab1 from './pages/Tab1';
 import Tab2 from './pages/Tab2';
 import Tab3 from './pages/Tab3';
@@ -47,6 +47,7 @@ const App: React.FC = () => {
 
   const [trips, setTrips] = useState<Trip[]>([]);
   const [reservations, setReservations] = useState<Reservation[]>([]);
+  const [adminReservations, setAdminReservations] = useState<Reservation[]>([]);
   const [apiError, setApiError] = useState('');
   const adminEmails = (import.meta.env.VITE_ADMIN_EMAILS ?? 'leobeni46@gmail.com')
     .split(',')
@@ -54,23 +55,33 @@ const App: React.FC = () => {
     .filter(Boolean);
   const isAdmin = !!activePassenger.email && adminEmails.includes(activePassenger.email.toLowerCase());
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       setApiError('');
-      const [{ trips: apiTrips }, { reservations: apiReservations }] = await Promise.all([
-        api.getTrips(),
-        api.getReservations()
-      ]);
+      const [{ trips: apiTrips }] = await Promise.all([api.getTrips()]);
       setTrips(apiTrips);
-      setReservations(apiReservations);
+
+      if (activePassenger.email) {
+        const { reservations: apiReservations } = await api.getReservationsByEmail(activePassenger.email);
+        setReservations(apiReservations);
+      } else {
+        setReservations([]);
+      }
+
+      if (isAdmin) {
+        const { reservations: apiAdminReservations } = await api.getAdminReservations();
+        setAdminReservations(apiAdminReservations);
+      } else {
+        setAdminReservations([]);
+      }
     } catch (error) {
       setApiError(error instanceof Error ? error.message : 'No se pudo cargar datos del servidor.');
     }
-  };
+  }, [activePassenger.email, isAdmin]);
 
   useEffect(() => {
     void loadData();
-  }, []);
+  }, [loadData]);
 
   const loginPassenger = async (payload: Passenger) => {
     const { passenger } = await api.login(payload);
@@ -82,6 +93,8 @@ const App: React.FC = () => {
   const logoutPassenger = () => {
     setActivePassenger({ name: '', email: '' });
     localStorage.removeItem('maya_passenger');
+    setReservations([]);
+    setAdminReservations([]);
   };
 
   const reserveSeat = async (payload: Omit<Reservation, 'id' | 'createdAt'>) => {
@@ -91,14 +104,14 @@ const App: React.FC = () => {
   };
 
   const reservationsByTrip = useMemo(() => {
-    return reservations.reduce<Record<string, Reservation[]>>((acc, reservation) => {
+    return adminReservations.reduce<Record<string, Reservation[]>>((acc, reservation) => {
       if (!acc[reservation.tripId]) {
         acc[reservation.tripId] = [];
       }
       acc[reservation.tripId].push(reservation);
       return acc;
     }, {});
-  }, [reservations]);
+  }, [adminReservations]);
 
   return (
     <IonApp>

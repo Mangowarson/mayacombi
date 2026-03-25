@@ -2,12 +2,69 @@ const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
 const mongoose = require('mongoose');
+const admin = require('firebase-admin');
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 const DB_NAME = process.env.MONGODB_DB_NAME || 'mayacombi';
+const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || 'leobeni46@gmail.com')
+  .split(',')
+  .map((email) => email.trim().toLowerCase())
+  .filter(Boolean);
+
+let firebaseInitialized = false;
+const initFirebase = () => {
+  if (firebaseInitialized) return;
+  const raw = process.env.FIREBASE_SERVICE_ACCOUNT;
+  const base64 = process.env.FIREBASE_SERVICE_ACCOUNT_BASE64;
+  const path = process.env.FIREBASE_SERVICE_ACCOUNT_PATH;
+
+  try {
+    let serviceAccount = null;
+    if (raw) {
+      serviceAccount = JSON.parse(raw);
+    } else if (base64) {
+      serviceAccount = JSON.parse(Buffer.from(base64, 'base64').toString('utf-8'));
+    } else if (path) {
+      serviceAccount = require(path);
+    }
+
+    if (serviceAccount) {
+      admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
+      firebaseInitialized = true;
+    }
+  } catch (error) {
+    console.error('Error al inicializar Firebase Admin:', error.message);
+  }
+};
+
+const requireAdmin = async (req, res, next) => {
+  try {
+    initFirebase();
+    if (!firebaseInitialized) {
+      return res.status(500).json({ message: 'Firebase Admin no configurado.' });
+    }
+
+    const authHeader = req.headers.authorization || '';
+    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
+    if (!token) {
+      return res.status(401).json({ message: 'Token de autenticacion requerido.' });
+    }
+
+    const decoded = await admin.auth().verifyIdToken(token);
+    const email = String(decoded.email || '').toLowerCase();
+    if (!email || !ADMIN_EMAILS.includes(email)) {
+      return res.status(403).json({ message: 'Acceso restringido a administradores.' });
+    }
+
+    req.adminEmail = email;
+    return next();
+  } catch (error) {
+    return res.status(401).json({ message: 'Token invalido o expirado.' });
+  }
+};
 
 app.use(cors());
 app.use(express.json());
@@ -106,6 +163,20 @@ app.get('/api/trips', async (_req, res) => {
 });
 
 app.get('/api/reservations', async (_req, res) => {
+  try {
+    const email = (_req.query.email || '').toString().trim().toLowerCase();
+    if (!email) {
+      return res.status(403).json({ message: 'Se requiere correo para consultar reservas.' });
+    }
+
+    const reservations = await Reservation.find({ passengerEmail: email }).sort({ createdAt: -1 }).lean();
+    return res.json({ reservations: reservations.map(mapReservation) });
+  } catch (error) {
+    return res.status(500).json({ message: 'No se pudieron obtener las reservas.' });
+  }
+});
+
+app.get('/api/admin/reservations', requireAdmin, async (_req, res) => {
   try {
     const reservations = await Reservation.find().sort({ createdAt: -1 }).lean();
     return res.json({ reservations: reservations.map(mapReservation) });
