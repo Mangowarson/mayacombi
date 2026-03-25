@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Maya Combi</string>
+    <string name="title_activity_main">Maya Combi</string>
+    <string name="package_name">com.mayacombi.mc</string>
+    <string name="custom_url_scheme">com.mayacombi.mc</string>
+</resources>
