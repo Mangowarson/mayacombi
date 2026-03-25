@@ -24,6 +24,7 @@ import { Filesystem, Directory } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
 import { jsPDF } from 'jspdf';
 import { useEffect, useMemo, useState } from 'react';
+import { api } from '../api/client';
 import type { Passenger, Reservation, Trip } from '../types';
 import './Tab2.css';
 
@@ -44,17 +45,19 @@ const Tab2: React.FC<Tab2Props> = ({ activePassenger, trips, reservations, onRes
   const [ticketMessage, setTicketMessage] = useState('');
   const [lastReservation, setLastReservation] = useState<Reservation | null>(null);
   const [logoDataUrl, setLogoDataUrl] = useState<string | null>(null);
+  const [takenSeats, setTakenSeats] = useState<number[]>([]);
   const [present] = useIonToast();
 
   const selectedTrip = trips.find((trip) => trip.id === selectedTripId) ?? trips[0];
 
-  const tripIdForSeats = selectedTrip?.id ?? '';
-
-  const takenSeats = useMemo(() => {
-    return reservations
-      .filter((reservation) => reservation.tripId === tripIdForSeats)
-      .map((reservation) => reservation.seatNumber);
-  }, [reservations, tripIdForSeats]);
+  const fetchSeats = async (tripId: string) => {
+    try {
+      const { takenSeats: apiTakenSeats } = await api.getTripSeats(tripId);
+      setTakenSeats(apiTakenSeats);
+    } catch {
+      setTakenSeats([]);
+    }
+  };
 
   const userReservations = useMemo(() => {
     if (!activePassenger.email) return [];
@@ -86,6 +89,12 @@ const Tab2: React.FC<Tab2Props> = ({ activePassenger, trips, reservations, onRes
       setPaymentSelection(null);
     }
   }, [paymentSelection, selectedSeat, selectedTrip?.id]);
+
+  useEffect(() => {
+    if (selectedTrip?.id) {
+      void fetchSeats(selectedTrip.id);
+    }
+  }, [selectedTrip?.id]);
 
   useEffect(() => {
     let isMounted = true;
@@ -154,6 +163,7 @@ const Tab2: React.FC<Tab2Props> = ({ activePassenger, trips, reservations, onRes
       setLastReservation(reservation);
       setPaymentConfirmed(false);
       setPaymentSelection(null);
+      await fetchSeats(selectedTrip.id);
       present({ message: 'Reserva confirmada y boleto generado.', duration: 1800, color: 'success' });
     } catch (error) {
       present({ message: error instanceof Error ? error.message : 'Error al reservar.', duration: 1800, color: 'danger' });
@@ -264,7 +274,16 @@ const Tab2: React.FC<Tab2Props> = ({ activePassenger, trips, reservations, onRes
               <IonChip color="medium">
                 <IonLabel>Ocupados: {takenSeats.length}</IonLabel>
               </IonChip>
-              <IonButton size="small" fill="clear" onClick={() => void onReload()}>
+              <IonButton
+                size="small"
+                fill="clear"
+                onClick={() => {
+                  void onReload();
+                  if (selectedTrip?.id) {
+                    void fetchSeats(selectedTrip.id);
+                  }
+                }}
+              >
                 Recargar
               </IonButton>
             </div>

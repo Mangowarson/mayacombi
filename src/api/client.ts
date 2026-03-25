@@ -15,6 +15,13 @@ interface TripsResponse {
   trips: Trip[];
 }
 
+interface TripSeatsResponse {
+  tripId: string;
+  totalSeats: number;
+  takenSeats: number[];
+  availableSeats: number;
+}
+
 interface ReservePayload {
   passengerName: string;
   passengerEmail: string;
@@ -70,6 +77,10 @@ export const api = {
 
   async getTrips() {
     return request<TripsResponse>('/api/trips');
+  },
+
+  async getTripSeats(tripId: string) {
+    return request<TripSeatsResponse>(`/api/trips/${encodeURIComponent(tripId)}/seats`);
   },
 
   async getReservationsByEmail(email: string) {
