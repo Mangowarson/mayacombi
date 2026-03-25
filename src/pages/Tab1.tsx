@@ -7,7 +7,6 @@ import {
   IonCardTitle,
   IonContent,
   IonHeader,
-  IonInput,
   IonItem,
   IonLabel,
   IonPage,
@@ -16,38 +15,77 @@ import {
   IonToolbar,
   useIonToast
 } from '@ionic/react';
-import { useEffect, useState } from 'react';
+import { getRedirectResult, signInWithPopup, signInWithRedirect, signOut } from 'firebase/auth';
+import { useCallback, useEffect, useState } from 'react';
+import { auth, googleProvider } from '../firebase';
 import type { Passenger } from '../types';
 import './Tab1.css';
 
 interface Tab1Props {
   activePassenger: Passenger;
   onLogin: (passenger: Passenger) => Promise<Passenger>;
+  onLogout: () => void;
   apiError: string;
 }
 
-const Tab1: React.FC<Tab1Props> = ({ activePassenger, onLogin, apiError }) => {
-  const [name, setName] = useState(activePassenger.name);
-  const [email, setEmail] = useState(activePassenger.email);
+const Tab1: React.FC<Tab1Props> = ({ activePassenger, onLogin, onLogout, apiError }) => {
+  const [loading, setLoading] = useState(false);
   const [present] = useIonToast();
 
-  useEffect(() => {
-    setName(activePassenger.name);
-    setEmail(activePassenger.email);
-  }, [activePassenger]);
-
-  const handleLogin = async () => {
-    if (!name.trim() || !email.trim()) {
-      present({ message: 'Completa nombre y correo.', duration: 1600, color: 'warning' });
+  const finalizeLogin = useCallback(async (name: string | null, email: string | null) => {
+    if (!email) {
+      present({ message: 'No se pudo obtener el correo de Google.', duration: 1800, color: 'danger' });
       return;
     }
 
     try {
-      await onLogin({ name: name.trim(), email: email.trim().toLowerCase() });
-      present({ message: 'Sesion iniciada correctamente.', duration: 1600, color: 'success' });
+      await onLogin({ name: name ?? 'Pasajero', email: email.toLowerCase() });
+      present({ message: 'Sesion iniciada con Google.', duration: 1600, color: 'success' });
     } catch (error) {
       present({ message: error instanceof Error ? error.message : 'Error de autenticacion.', duration: 1800, color: 'danger' });
     }
+  }, [onLogin, present]);
+
+  useEffect(() => {
+    let mounted = true;
+    getRedirectResult(auth)
+      .then((result) => {
+        if (!mounted || !result?.user) return;
+        void finalizeLogin(result.user.displayName, result.user.email);
+      })
+      .catch(() => {
+        // Ignore redirect failures; user can try again with popup.
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [finalizeLogin]);
+
+  const handleGoogleLogin = async () => {
+    setLoading(true);
+    try {
+      const result = await signInWithPopup(auth, googleProvider);
+      await finalizeLogin(result.user.displayName, result.user.email);
+    } catch (error) {
+      const code = error && typeof error === 'object' && 'code' in error ? String(error.code) : '';
+      if (code === 'auth/popup-blocked' || code === 'auth/operation-not-supported-in-this-environment') {
+        await signInWithRedirect(auth, googleProvider);
+      } else {
+        present({ message: 'No se pudo iniciar con Google.', duration: 1800, color: 'danger' });
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+    } catch {
+      // ignore
+    }
+    onLogout();
+    present({ message: 'Sesion cerrada.', duration: 1400, color: 'medium' });
   };
 
   return (
@@ -61,25 +99,27 @@ const Tab1: React.FC<Tab1Props> = ({ activePassenger, onLogin, apiError }) => {
         <IonCard>
           <IonCardHeader>
             <IonCardTitle>Acceso de pasajero</IonCardTitle>
-            <IonCardSubtitle>Registro / inicio de sesion</IonCardSubtitle>
+            <IonCardSubtitle>Ingreso con Google</IonCardSubtitle>
           </IonCardHeader>
           <IonCardContent>
-            <IonItem>
-              <IonLabel position="stacked">Nombre completo</IonLabel>
-              <IonInput value={name} placeholder="Leonardo Alvarez" onIonInput={(e) => setName(e.detail.value ?? '')} />
-            </IonItem>
-            <IonItem>
-              <IonLabel position="stacked">Correo</IonLabel>
-              <IonInput
-                type="email"
-                value={email}
-                placeholder="correo@dominio.com"
-                onIonInput={(e) => setEmail(e.detail.value ?? '')}
-              />
-            </IonItem>
-            <IonButton expand="block" className="login-button" onClick={handleLogin}>
-              Guardar sesion
-            </IonButton>
+            {activePassenger.email ? (
+              <>
+                <IonItem>
+                  <IonLabel>
+                    <strong>Sesión activa</strong>
+                    <p>{activePassenger.name}</p>
+                    <p>{activePassenger.email}</p>
+                  </IonLabel>
+                </IonItem>
+                <IonButton expand="block" color="medium" onClick={handleLogout}>
+                  Cerrar sesión
+                </IonButton>
+              </>
+            ) : (
+              <IonButton expand="block" className="login-button" disabled={loading} onClick={handleGoogleLogin}>
+                {loading ? 'Conectando…' : 'Iniciar con Google'}
+              </IonButton>
+            )}
             {apiError && <IonText color="danger">{apiError}</IonText>}
           </IonCardContent>
         </IonCard>

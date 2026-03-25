@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "711180974830",
+    "project_id": "mayacombi-144ac",
+    "storage_bucket": "mayacombi-144ac.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:711180974830:android:f6547716464dd1317991ff",
+        "android_client_info": {
+          "package_name": "com.mayacombi.mc"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAWG6H_yo2lmjh0TT6mir_zFtPjn0aAXUA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

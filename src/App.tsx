@@ -74,6 +74,11 @@ const App: React.FC = () => {
     return passenger;
   };
 
+  const logoutPassenger = () => {
+    setActivePassenger({ name: '', email: '' });
+    localStorage.removeItem('maya_passenger');
+  };
+
   const reserveSeat = async (payload: Omit<Reservation, 'id' | 'createdAt'>) => {
     const { reservation } = await api.createReservation(payload);
     setReservations((current) => [reservation, ...current]);
@@ -96,7 +101,7 @@ const App: React.FC = () => {
         <IonTabs>
           <IonRouterOutlet>
             <Route exact path="/inicio">
-              <Tab1 activePassenger={activePassenger} onLogin={loginPassenger} apiError={apiError} />
+              <Tab1 activePassenger={activePassenger} onLogin={loginPassenger} onLogout={logoutPassenger} apiError={apiError} />
             </Route>
             <Route exact path="/reservar">
               <Tab2
